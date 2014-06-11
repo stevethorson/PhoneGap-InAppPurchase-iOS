@@ -89,7 +89,8 @@ InAppBilling.prototype.getProductDetails = function (success, fail, skus) {
     if (!skus.length) {
         // Empty array, nothing to do.
         return;
-    }else {
+    }
+    else {
         if (typeof skus[0] !== 'string') {
             var msg = 'invalid productIds: ' + JSON.stringify(skus);
             log(msg);
