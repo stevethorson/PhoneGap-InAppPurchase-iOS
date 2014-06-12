@@ -2,6 +2,7 @@
 
 package com.mohamnag.util;
 
+import com.mohamnag.inappbilling.Purchase;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

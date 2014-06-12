@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 
-import com.mohamnag.util.Purchase;
 import com.mohamnag.iab.IabHelper;
 import com.mohamnag.iab.IabResult;
 import com.mohamnag.util.Inventory;
@@ -56,6 +55,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
     // used here:
     private static final int ERR_LOAD_INVENTORY = ERROR_CODES_BASE + 11;
     private static final int ERR_HELPER_DISPOSED = ERROR_CODES_BASE + 12;
+    private static final int ERR_NOT_INITIALIZED = ERROR_CODES_BASE + 13;
 
     //TODO: set this from JS, according to what is defined in options
     private final Boolean ENABLE_DEBUG_LOGGING = true;
@@ -119,12 +119,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     init(productIds, callbackContext);
                     break;
                 }
+                // Get the list of purchases
                 case "getPurchases": {
-                    // Get the list of purchases
-                    JSONArray jsonSkuList = new JSONArray();
-                    jsonSkuList = getPurchases();
-                    // Call the javascript back
-                    callbackContext.success(jsonSkuList);
+                    getPurchases(callbackContext);
                     break;
                 }
                 case "buy": {
@@ -174,6 +171,12 @@ public class InAppBillingPlugin extends CordovaPlugin {
         return isValidAction;
     }
 
+    /**
+     * Helper to convert JSON string to a List<String>
+     * 
+     * @param data
+     * @return 
+     */
     private List<String> jsonStringToList(String data) {
         JSONArray jsonSkuList = new JSONArray(data);
 
@@ -194,10 +197,10 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * Initializes the plugin, will also optionally load products if some
      * product IDs are provided.
      *
-     * @param skus
+     * @param productIds
      * @param callbackContext
      */
-    private void init(final List<String> skus, final CallbackContext callbackContext) {
+    private void init(final List<String> productIds, final CallbackContext callbackContext) {
         jsLog("Initialization started.");
 
         // Some sanity checks to see if the developer (that's you!) really followed the
@@ -223,19 +226,19 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 if (!result.isSuccess()) {
                     // Oh no, there was a problem.
                     jsLog("Setup finished unsuccessfully.");
-                    
+
                     callbackContext.error(ErrorEvent.buildJson(
                             ERR_SETUP,
                             "IAB setup was not successful",
                             result
                     ));
-                    
-                } 
+
+                }
                 else {
                     // Hooray, IAB is fully set up. Now, let's get an inventory of stuff we own.
                     jsLog("Setup finished successfully.");
-                    
-                    getProductDetails(skus, callbackContext);
+
+                    getProductDetails(productIds, callbackContext);
                 }
             }
         });
@@ -302,22 +305,33 @@ public class InAppBillingPlugin extends CordovaPlugin {
         mHelper.launchPurchaseFlow(cordova.getActivity(), sku, IabHelper.ITEM_TYPE_SUBS, RC_REQUEST, mPurchaseFinishedListener, payload);
     }
 
-    // Get the list of purchases
-    private JSONArray getPurchases() throws JSONException {
-        // Get the list of owned items
+    /**
+     * Get list of loaded purchases
+     * 
+     * @param callbackContext
+     * @throws JSONException 
+     */
+    private void getPurchases(CallbackContext callbackContext) throws JSONException {
+        jsLog("getPurchases called.");
+        
         if (myInventory == null) {
-            callbackContext.error("Billing plugin was not initialized");
-            return new JSONArray();
+            callbackContext.error(ErrorEvent.buildJson(
+                    ERR_NOT_INITIALIZED,
+                    "Billing plugin was not initialized",
+                    null
+            ));
         }
-        List<Purchase> purchaseList = myInventory.getAllPurchases();
+        else {
+            List<Purchase> purchaseList = myInventory.getAllPurchases();
 
-        // Convert the java list to buildJson
-        JSONArray jsonPurchaseList = new JSONArray();
-        for (Purchase p : purchaseList) {
-            jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
+            // Convert the java list to JSON
+            JSONArray jsonPurchaseList = new JSONArray();
+            for (Purchase p : purchaseList) {
+                jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
+            }
+            
+            callbackContext.success(jsonPurchaseList);
         }
-
-        return jsonPurchaseList;
     }
 
     // Get the list of available products
@@ -345,9 +359,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     /**
      * Loads products with specific IDs and gets their details.
-     * 
+     *
      * @param skus
-     * @param callbackContext 
+     * @param callbackContext
      */
     private void getProductDetails(final List<String> skus, final CallbackContext callbackContext) {
         if (!disposed(callbackContext)) {

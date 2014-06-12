@@ -31,7 +31,7 @@ import android.util.Log;
 
 import com.android.vending.billing.IInAppBillingService;
 import com.mohamnag.util.Inventory;
-import com.mohamnag.util.Purchase;
+import com.mohamnag.inappbilling.Purchase;
 import com.mohamnag.util.Security;
 import com.mohamnag.util.SkuDetails;
 
