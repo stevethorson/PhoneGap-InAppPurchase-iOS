@@ -117,6 +117,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * functions.
      */
     public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
+        jsLog("execute called for action: " + action + " data: " + data);
+        
         // Check if the action has a handler
         Boolean isValidAction = true;
 
@@ -229,7 +231,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void init(final List<String> productIds, final CallbackContext callbackContext) {
-        jsLog("Initialization started.");
+        jsLog("init called with productIds: " + productIds);
 
         // Some sanity checks to see if the developer (that's you!) really followed the
         // instructions to run this plugin
@@ -314,6 +316,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void buy(final String productId, final String payload, final CallbackContext callbackContext) {
+        jsLog("buy called for productId: " + productId + " payload: " + payload);
+        
         this.cordova.setActivityResultCallback(this);
 
         // we create one listener for each purchase request, this guarnatiees 
@@ -376,6 +380,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void subscribe(final String productId, final String payload, final CallbackContext callbackContext) {
+        jsLog("subscribe called for productId: " + productId + " payload: " + payload);
+        
         if (!mHelper.subscriptionsSupported()) {
             callbackContext.error(ErrorEvent.buildJson(
                     ERR_SUBSCRIPTION_NOT_SUPPORTED,
@@ -498,6 +504,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void getAvailableProducts(CallbackContext callbackContext) {
+        jsLog("getAvailableProducts called.");
+        
         if (isInventoryLoaded(callbackContext)) {
             List<SkuDetails> skuList = myInventory.getAllProducts();
 
@@ -530,6 +538,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void getProductDetails(final List<String> productIds, final CallbackContext callbackContext) {
+        jsLog("getProductDetails called.");
+        
         IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
             @Override
             public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
@@ -569,6 +579,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      */
     private void consumePurchase(final String productId, final CallbackContext callbackContext) {
+        jsLog("consumePurchase called.");
+        
         if (isInventoryLoaded(callbackContext)) {
             
             // Get the purchase from the inventory
@@ -629,6 +641,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     @Override
     public void onDestroy() {
+        jsLog("onDestroy called.");
+        
         super.onDestroy();
 
         initialized = false;
