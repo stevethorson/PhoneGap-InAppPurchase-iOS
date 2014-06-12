@@ -108,12 +108,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
             switch (action) {
                 // Initialize
                 case "init": {
-                    List<String> productIds;
+                    List<String> productIds = null;
                     if (data.length() > 0) {
                         productIds = jsonStringToList(data.getString(0));
-                    }
-                    else {
-                        productIds = new ArrayList<>();
                     }
 
                     init(productIds, callbackContext);
@@ -360,10 +357,10 @@ public class InAppBillingPlugin extends CordovaPlugin {
     /**
      * Loads products with specific IDs and gets their details.
      *
-     * @param skus
+     * @param productIds
      * @param callbackContext
      */
-    private void getProductDetails(final List<String> skus, final CallbackContext callbackContext) {
+    private void getProductDetails(final List<String> productIds, final CallbackContext callbackContext) {
         if (!disposed(callbackContext)) {
             IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
                 @Override
@@ -387,13 +384,13 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 }
             };
 
-            if (skus.size() <= 0) {
+            if (productIds == null) {
                 jsLog("Querying inventory without product IDs.");
                 mHelper.queryInventoryAsync(invListener);
             }
             else {
                 jsLog("Querying inventory with specific product IDs.");
-                mHelper.queryInventoryAsync(true, skus, invListener);
+                mHelper.queryInventoryAsync(true, productIds, invListener);
             }
         }
     }
