@@ -1,6 +1,6 @@
 
 
-package com.mohamnag.util;
+package com.mohamnag.inappbilling.helper;
 
 import android.text.TextUtils;
 import android.util.Log;

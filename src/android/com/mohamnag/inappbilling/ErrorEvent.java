@@ -6,7 +6,7 @@
 
 package com.mohamnag.inappbilling;
 
-import com.mohamnag.iab.IabResult;
+import com.mohamnag.inappbilling.helper.IabResult;
 import org.json.JSONObject;
 
 /**

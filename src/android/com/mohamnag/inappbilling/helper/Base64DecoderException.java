@@ -1,6 +1,6 @@
 
 
-package com.mohamnag.util;
+package com.mohamnag.inappbilling.helper;
 
 /**
  * Exception thrown when encountering an invalid Base64 input character.

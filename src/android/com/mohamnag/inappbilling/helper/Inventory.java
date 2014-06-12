@@ -1,8 +1,7 @@
 
 
-package com.mohamnag.util;
+package com.mohamnag.inappbilling.helper;
 
-import com.mohamnag.inappbilling.Purchase;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

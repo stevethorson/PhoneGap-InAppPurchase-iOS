@@ -1,4 +1,4 @@
-package com.mohamnag.inappbilling;
+package com.mohamnag.inappbilling.helper;
 
 import org.json.JSONException;
 import org.json.JSONObject;

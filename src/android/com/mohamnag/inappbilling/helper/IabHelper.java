@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.mohamnag.iab;
+package com.mohamnag.inappbilling.helper;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -30,10 +30,6 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.vending.billing.IInAppBillingService;
-import com.mohamnag.util.Inventory;
-import com.mohamnag.inappbilling.Purchase;
-import com.mohamnag.util.Security;
-import com.mohamnag.util.SkuDetails;
 
 import org.json.JSONException;
 

@@ -1,8 +1,8 @@
 
 
-package com.mohamnag.util;
+package com.mohamnag.inappbilling.helper;
 
-import com.mohamnag.iab.IabHelper;
+import com.mohamnag.inappbilling.helper.IabHelper;
 import org.json.JSONException;
 import org.json.JSONObject;
 

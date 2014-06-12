@@ -7,6 +7,7 @@
  */
 package com.mohamnag.inappbilling;
 
+import com.mohamnag.inappbilling.helper.Purchase;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -17,10 +18,10 @@ import java.util.ArrayList;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 
-import com.mohamnag.iab.IabHelper;
-import com.mohamnag.iab.IabResult;
-import com.mohamnag.util.Inventory;
-import com.mohamnag.util.SkuDetails;
+import com.mohamnag.inappbilling.helper.IabHelper;
+import com.mohamnag.inappbilling.helper.IabResult;
+import com.mohamnag.inappbilling.helper.Inventory;
+import com.mohamnag.inappbilling.helper.SkuDetails;
 
 import android.content.Intent;
 import android.util.Log;

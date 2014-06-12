@@ -1,6 +1,6 @@
-package com.mohamnag.iab;
+package com.mohamnag.inappbilling.helper;
 
-import com.mohamnag.iab.IabResult;
+import com.mohamnag.inappbilling.helper.IabResult;
 
 /**
  * Exception thrown when something went wrong with in-app billing. An
