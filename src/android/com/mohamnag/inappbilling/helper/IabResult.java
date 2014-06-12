@@ -44,7 +44,7 @@ public class IabResult {
         return "IabResult: " + getMessage();
     }
 
-    public JSONObject toJSON() {
+    public JSONObject toJson() {
         JSONObject res = new JSONObject();
         res.append("IabResponse", mResponse);
         res.append("IabMessage", this.getMessage());

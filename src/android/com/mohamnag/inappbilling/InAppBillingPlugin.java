@@ -24,14 +24,12 @@ import com.mohamnag.inappbilling.helper.Inventory;
 import com.mohamnag.inappbilling.helper.SkuDetails;
 
 import android.content.Intent;
-import android.util.Log;
 
 public class InAppBillingPlugin extends CordovaPlugin {
-    //TODO: transfer all the logs back to JS for a better visibility. ~> window.inappbilling.log()
 
     /*
-     SIDE NOTE: plugins can initialize automatically using "initialize" method. they can even request on load
-     init. may be considered too!
+     SIDE NOTE: plugins can initialize automatically using "initialize" method. 
+     they can even request on startup init. may be considered too!
 
      http://docs.phonegap.com/en/3.4.0/guide_platforms_android_plugin.md.html#Android%20Plugins
      */
@@ -43,6 +41,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     private static final int ERROR_CODES_BASE = 4983497;
 
+    private static final int ERR_SETUP = ERROR_CODES_BASE + 1;
     private static final int ERR_LOAD = ERROR_CODES_BASE + 2;
     private static final int ERR_PURCHASE = ERROR_CODES_BASE + 3;
     private static final int ERR_LOAD_RECEIPTS = ERROR_CODES_BASE + 4;
@@ -51,9 +50,6 @@ public class InAppBillingPlugin extends CordovaPlugin {
     private static final int ERR_PAYMENT_INVALID = ERROR_CODES_BASE + 7;
     private static final int ERR_PAYMENT_NOT_ALLOWED = ERROR_CODES_BASE + 8;
     private static final int ERR_UNKNOWN = ERROR_CODES_BASE + 10;
-
-    // used here:
-    private static final int ERR_SETUP = ERROR_CODES_BASE + 1;
     private static final int ERR_LOAD_INVENTORY = ERROR_CODES_BASE + 11;
     private static final int ERR_HELPER_DISPOSED = ERROR_CODES_BASE + 12;
     private static final int ERR_NOT_INITIALIZED = ERROR_CODES_BASE + 13;
@@ -62,6 +58,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
     private static final int ERR_JSON_CONVERSION_FAILED = ERROR_CODES_BASE + 16;
     private static final int ERR_INVALID_PURCHASE_PAYLOAD = ERROR_CODES_BASE + 17;
     private static final int ERR_SUBSCRIPTION_NOT_SUPPORTED = ERROR_CODES_BASE + 18;
+    private static final int ERR_CONSUME_NOT_OWNED_ITEM = ERROR_CODES_BASE + 19;
+    private static final int ERR_CONSUMPTION_FAILED = ERROR_CODES_BASE + 20;
 
     private boolean initialized = false;
 
@@ -85,22 +83,30 @@ public class InAppBillingPlugin extends CordovaPlugin {
     private final String base64EncodedPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAogC9VXkak0pUlNZLpT90jKyejwrsd6ASjL1wuIJgpk3TyoOEYR3aUdthTfVEnqsEdOWNb/uc0CsFfsnGIchiQmiL3oSM7WFpC4/zWVYl8M+oe3BWczEMKSC7XR/XXjsnK7dMWvPFkProF9+4yDCHy+zpPT0HKP0UZOp0GTNGjgKP2SIye0Whx985vo6edsrKeNe7aZZS63N8X6bRIMAHKgyO4vowZJn+QYGzHh9ZSknExfJFqBKhMr5ytI2shhzFMx0tQPd76SKjIRZ8e6iQAyJkMjLnCBbhfB4FoguSXijB4PCZxTJ0fmO6OGIhWf3hz/wLRapGlRXtEuV2HVTH5QIDAQAB";
 
     /**
-     * request code for the purchase flow
+     * request code base for the purchase flow
      */
     static int RC_REQUEST_BASE = 10000;
 
-    // The helper object
+    /**
+     * The helper object
+     */
     IabHelper mHelper;
 
-    // A quite up to date inventory of available items and purchase items
+    /**
+     * A quite up to date inventory of available items and purchase items
+     */
     Inventory myInventory;
 
-    //TODO: a global callbakcContext is wrong and may interfere in concurrent calls, remove this and pass it to each function!
-    CallbackContext callbackContext;
-
-    //TODO: replace all the Log.d() calls with this 
+    /**
+     * This is a bridge to the log function in JavaScript world. We pass the
+     * logs there for an easier debug for end developers.
+     * 
+     * This is prone to XSS attacks! current workaround: turn off logs in production
+     *
+     * @param msg
+     */
     private void jsLog(String msg) {
-        //TODO: msg is prone to js injection! current workaround: turn off logs in production
+        // transfer all the logs back to JS for a better visibility. ~> window.inappbilling.log()
         String js = String.format("window.inappbilling.log('%s');", "[android] " + msg);
         webView.sendJavascript(js);
     }
@@ -111,7 +117,6 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * functions.
      */
     public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
-        this.callbackContext = callbackContext;
         // Check if the action has a handler
         Boolean isValidAction = true;
 
@@ -159,19 +164,24 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     }
                     break;
                 }
+                // consume an owned item
                 case "consumePurchase":
-                    consumePurchase(data);
+                    if (isReady(callbackContext)) {
+                        consumePurchase(data.getString(0), callbackContext);
+                    }
                     break;
+                // Get the list of loaded products
                 case "getAvailableProducts": {
-                    // Get the list of purchases
-                    JSONArray jsonSkuList = new JSONArray();
-                    jsonSkuList = getAvailableProducts();
-                    // Call the javascript back
-                    callbackContext.success(jsonSkuList);
+                    if (isReady(callbackContext)) {
+                        getAvailableProducts(callbackContext);
+                    }
                     break;
                 }
+                // Get details of a loaded product
                 case "getProductDetails": {
-                    getProductDetails(jsonStringToList(data.getString(0)), callbackContext);
+                    if (isReady(callbackContext)) {
+                        getProductDetails(jsonStringToList(data.getString(0)), callbackContext);
+                    }
                     break;
                 }
                 default:
@@ -182,9 +192,6 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
         }
         catch (IllegalStateException e) {
-            callbackContext.error(e.getMessage());
-        }
-        catch (JSONException e) {
             callbackContext.error(e.getMessage());
         }
 
@@ -215,7 +222,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
     }
 
     /**
-     * Initializes the plugin, will also optionally load products if some
+     * Initializes the plug-in, will also optionally load products if some
      * product IDs are provided.
      *
      * @param productIds
@@ -308,7 +315,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     private void buy(final String productId, final String payload, final CallbackContext callbackContext) {
         this.cordova.setActivityResultCallback(this);
-        
+
         // we create one listener for each purchase request, this guarnatiees 
         // the concistency of data when multiple requests is launched in parallel
         IabHelper.OnIabPurchaseFinishedListener prchListener = new IabHelper.OnIabPurchaseFinishedListener() {
@@ -363,10 +370,10 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     /**
      * Subscribe to an already loaded item.
-     * 
+     *
      * @param productId
      * @param payload
-     * @param callbackContext 
+     * @param callbackContext
      */
     private void subscribe(final String productId, final String payload, final CallbackContext callbackContext) {
         if (!mHelper.subscriptionsSupported()) {
@@ -384,7 +391,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 @Override
                 public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
                     jsLog("Subscription finished: " + result + ", purchase: " + purchase);
-                    
+
                     if (isReady(callbackContext)) {
                         if (result.isFailure()) {
                             callbackContext.error(ErrorEvent.buildJson(
@@ -438,237 +445,175 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      * @throws JSONException
      */
-    private void getPurchases(CallbackContext callbackContext) throws JSONException {
+    private void getPurchases(CallbackContext callbackContext) {
         jsLog("getPurchases called.");
+
+        if (isInventoryLoaded(callbackContext)) {
+            List<Purchase> purchaseList = myInventory.getAllPurchases();
+
+            // becareful here not to call both success and error!
+            try {
+                // Convert the java list to JSON
+                JSONArray jsonPurchaseList = new JSONArray();
+                for (Purchase p : purchaseList) {
+                    jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
+                }
+
+                callbackContext.success(jsonPurchaseList);
+            }
+            catch (JSONException e) {
+                callbackContext.error(ErrorEvent.buildJson(
+                        ERR_JSON_CONVERSION_FAILED,
+                        "Could not create JSON object from purchase list",
+                        null
+                ));
+            }
+        }
+    }
+
+    /**
+     * Checks for the availability of inventory.
+     *
+     * @param callbackContext
+     * @return
+     */
+    private boolean isInventoryLoaded(CallbackContext callbackContext) {
         if (myInventory == null) {
             callbackContext.error(ErrorEvent.buildJson(
                     ERR_INVENTORY_NOT_LOADED,
                     "Inventory is not loaded.",
                     null
             ));
+
+            return false;
         }
         else {
-            List<Purchase> purchaseList = myInventory.getAllPurchases();
-
-            // Convert the java list to JSON
-            JSONArray jsonPurchaseList = new JSONArray();
-            for (Purchase p : purchaseList) {
-                jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
-            }
-
-            callbackContext.success(jsonPurchaseList);
+            return true;
         }
-    }
-
-    // Get the list of available products
-    private JSONArray getAvailableProducts() {
-        // Get the list of owned items
-        if (myInventory == null) {
-            callbackContext.error("Billing plugin was not initialized");
-            return new JSONArray();
-        }
-        List<SkuDetails> skuList = myInventory.getAllProducts();
-
-        // Convert the java list to buildJson
-        JSONArray jsonSkuList = new JSONArray();
-        try {
-            for (SkuDetails sku : skuList) {
-                Log.d(TAG, "SKUDetails: Title: " + sku.getTitle());
-                jsonSkuList.put(sku.toJson());
-            }
-        }
-        catch (JSONException e) {
-            callbackContext.error(e.getMessage());
-        }
-        return jsonSkuList;
     }
 
     /**
-     * Loads products with specific IDs and gets their details.
+     * Returns the list of all loaded products.
+     *
+     * @param callbackContext
+     */
+    private void getAvailableProducts(CallbackContext callbackContext) {
+        if (isInventoryLoaded(callbackContext)) {
+            List<SkuDetails> skuList = myInventory.getAllProducts();
+
+            // becareful here not to call both success and error!
+            try {
+                // Convert the java list to JSON
+                JSONArray jsonSkuList = new JSONArray();
+                for (SkuDetails sku : skuList) {
+                    jsLog("SKUDetails: Title: " + sku.getTitle());
+                    jsonSkuList.put(sku.toJson());
+                }
+
+                callbackContext.success(jsonSkuList);
+            }
+            catch (JSONException e) {
+                callbackContext.error(ErrorEvent.buildJson(
+                        ERR_JSON_CONVERSION_FAILED,
+                        "Could not create JSON object from products list",
+                        null
+                ));
+            }
+        }
+    }
+
+    /**
+     * Loads products with specific IDs and gets their details. Also loads the
+     * history of purchases.
      *
      * @param productIds
      * @param callbackContext
      */
     private void getProductDetails(final List<String> productIds, final CallbackContext callbackContext) {
-        if (isReady(callbackContext)) {
-            IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
-                @Override
-                public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
-                    jsLog("Inventory listener called.");
+        IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
+            @Override
+            public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
+                jsLog("Inventory listener called.");
 
-                    if (result.isFailure()) {
-                        callbackContext.error(ErrorEvent.buildJson(
-                                ERR_LOAD_INVENTORY,
-                                "Failed to query inventory.",
-                                result
-                        ));
-                    }
-                    else {
-                        //I'm not really feeling good about just copying inventory OVER old data!
-                        myInventory = inventory;
-
-                        jsLog("Query inventory was successful.");
-                        callbackContext.success();
-                    }
+                if (result.isFailure()) {
+                    callbackContext.error(ErrorEvent.buildJson(
+                            ERR_LOAD_INVENTORY,
+                            "Failed to query inventory.",
+                            result
+                    ));
                 }
-            };
+                else {
+                    //I'm not really feeling good about just copying inventory OVER old data!
+                    myInventory = inventory;
 
-            if (productIds == null) {
-                jsLog("Querying inventory without product IDs.");
-                mHelper.queryInventoryAsync(invListener);
+                    jsLog("Query inventory was successful.");
+                    callbackContext.success();
+                }
             }
-            else {
-                jsLog("Querying inventory with specific product IDs.");
-                mHelper.queryInventoryAsync(true, productIds, invListener);
-            }
-        }
-    }
+        };
 
-    // Consume a purchase
-    private void consumePurchase(JSONArray data) throws JSONException {
-
-        if (mHelper == null) {
-            callbackContext.error("Did you forget to initialize the plugin?");
-            return;
-        }
-
-        String sku = data.getString(0);
-
-        // Get the purchase from the inventory
-        Purchase purchase = myInventory.getPurchase(sku);
-        if (purchase != null) // Consume it
-        {
-            mHelper.consumeAsync(purchase, mConsumeFinishedListener);
+        if (productIds == null) {
+            jsLog("Querying inventory without product IDs.");
+            mHelper.queryInventoryAsync(invListener);
         }
         else {
-            callbackContext.error(sku + " is not owned so it cannot be consumed");
+            jsLog("Querying inventory with specific product IDs.");
+            mHelper.queryInventoryAsync(true, productIds, invListener);
         }
     }
 
-    // Listener that's called when we finish querying the items and subscriptions we own
-    IabHelper.QueryInventoryFinishedListener mGotInventoryListener = new IabHelper.QueryInventoryFinishedListener() {
-        public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
-            Log.d(TAG, "Inside mGotInventoryListener");
-            if (!hasErrorsAndUpdateInventory(result, inventory)) {
+    /**
+     * Consumes an already owned item.
+     *
+     * @param productId
+     * @param callbackContext
+     */
+    private void consumePurchase(final String productId, final CallbackContext callbackContext) {
+        if (isInventoryLoaded(callbackContext)) {
+            
+            // Get the purchase from the inventory
+            Purchase purchase = myInventory.getPurchase(productId);
 
-            }
+            //TODO: check also type of product, not all of them may be consumed
+            if (purchase != null) {
+                IabHelper.OnConsumeFinishedListener consListener = new IabHelper.OnConsumeFinishedListener() {
+                    @Override
+                    public void onConsumeFinished(Purchase purchase, IabResult result) {
+                        jsLog("Consumption finished. Purchase: " + purchase + ", result: " + result);
 
-            Log.d(TAG, "Query inventory was successful.");
-            callbackContext.success();
+                        if (result.isSuccess()) {
+                            // remove the item from the inventory
+                            myInventory.erasePurchase(purchase.getSku());
 
-        }
-    };
+                            //TODO: convert to JSONObject?!
+                            callbackContext.success(purchase.getOriginalJson());
+                        }
+                        else {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_CONSUMPTION_FAILED,
+                                    "Error while consuming: " + productId,
+                                    result
+                            ));
+                        }
 
-    // Listener that's called when we finish querying the details
-    IabHelper.QueryInventoryFinishedListener mGotDetailsListener = new IabHelper.QueryInventoryFinishedListener() {
-        public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
-            Log.d(TAG, "Inside mGotDetailsListener");
-            if (!hasErrorsAndUpdateInventory(result, inventory)) {
+                    }
+                };
 
-            }
-
-            Log.d(TAG, "Query details was successful.");
-
-            List<SkuDetails> skuList = inventory.getAllProducts();
-
-            // Convert the java list to buildJson
-            JSONArray jsonSkuList = new JSONArray();
-            try {
-                for (SkuDetails sku : skuList) {
-                    Log.d(TAG, "SKUDetails: Title: " + sku.getTitle());
-                    jsonSkuList.put(sku.toJson());
-                }
-            }
-            catch (JSONException e) {
-                callbackContext.error(e.getMessage());
-            }
-            callbackContext.success(jsonSkuList);
-        }
-    };
-
-    // Check if there is any errors in the iabResult and update the inventory
-    private Boolean hasErrorsAndUpdateInventory(IabResult result, Inventory inventory) {
-        if (result.isFailure()) {
-            callbackContext.error("Failed to query inventory: " + result);
-            return true;
-        }
-
-        // Have we been disposed of in the meantime? If so, quit.
-        if (mHelper == null) {
-            callbackContext.error("The billing helper has been disposed");
-            return true;
-        }
-
-        // Update the inventory
-        myInventory = inventory;
-
-        return false;
-    }
-
-    // Callback for when a purchase is finished
-    IabHelper.OnIabPurchaseFinishedListener mPurchaseFinishedListener = new IabHelper.OnIabPurchaseFinishedListener() {
-        public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
-            Log.d(TAG, "Purchase finished: " + result + ", purchase: " + purchase);
-
-            // Have we been disposed of in the meantime? If so, quit.
-            if (mHelper == null) {
-                callbackContext.error("The billing helper has been disposed");
-            }
-
-            if (result.isFailure()) {
-                callbackContext.error("Error purchasing: " + result);
-                return;
-            }
-
-            if (!verifyDeveloperPayload(purchase)) {
-                callbackContext.error("Error purchasing. Authenticity verification failed.");
-                return;
-            }
-
-            Log.d(TAG, "Purchase successful.");
-
-            // add the purchase to the inventory
-            myInventory.addPurchase(purchase);
-
-            try {
-                callbackContext.success(new JSONObject(purchase.getOriginalJson()));
-            }
-            catch (JSONException e) {
-                callbackContext.error("Could not create JSON object from purchase object");
-            }
-
-        }
-    };
-
-    // Called when consumption is complete
-    IabHelper.OnConsumeFinishedListener mConsumeFinishedListener = new IabHelper.OnConsumeFinishedListener() {
-        public void onConsumeFinished(Purchase purchase, IabResult result) {
-            Log.d(TAG, "Consumption finished. Purchase: " + purchase + ", result: " + result);
-
-            // We know this is the "gas" sku because it's the only one we consume,
-            // so we don't check which sku was consumed. If you have more than one
-            // sku, you probably should check...
-            if (result.isSuccess()) {
-                // successfully consumed, so we apply the effects of the item in our
-                // game world's logic
-
-                // remove the item from the inventory
-                myInventory.erasePurchase(purchase.getSku());
-                Log.d(TAG, "Consumption successful. .");
-
-                callbackContext.success(purchase.getOriginalJson());
-
+                mHelper.consumeAsync(purchase, consListener);
             }
             else {
-                callbackContext.error("Error while consuming: " + result);
+                callbackContext.error(ErrorEvent.buildJson(
+                        ERR_CONSUME_NOT_OWNED_ITEM,
+                        productId + " is not owned so it cannot be consumed",
+                        null
+                ));
             }
-
         }
-    };
+    }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(TAG, "onActivityResult(" + requestCode + "," + resultCode + "," + data);
+        jsLog("onActivityResult(" + requestCode + "," + resultCode + "," + data);
 
         // Pass on the activity result to the helper for handling
         if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
@@ -678,49 +623,18 @@ public class InAppBillingPlugin extends CordovaPlugin {
             super.onActivityResult(requestCode, resultCode, data);
         }
         else {
-            Log.d(TAG, "onActivityResult handled by IABUtil.");
+            jsLog("onActivityResult handled by IABUtil.");
         }
     }
 
-    /**
-     * Verifies the developer payload of a purchase.
-     */
-    boolean verifyDeveloperPayload(Purchase p) {
-        @SuppressWarnings("unused")
-        String payload = p.getDeveloperPayload();
-
-        /*
-         * TODO: verify that the developer payload of the purchase is correct. It will be
-         * the same one that you sent when initiating the purchase.
-         * 
-         * WARNING: Locally generating a random string when starting a purchase and 
-         * verifying it here might seem like a good approach, but this will fail in the 
-         * case where the user purchases an item on one device and then uses your app on 
-         * a different device, because on the other device you will not have access to the
-         * random string you originally generated.
-         *
-         * So a good developer payload has these characteristics:
-         * 
-         * 1. If two different users purchase an item, the payload is different between them,
-         *    so that one user's purchase can't be replayed to another user.
-         * 
-         * 2. The payload must be such that you can verify it even when the app wasn't the
-         *    one who initiated the purchase flow (so that items purchased by the user on 
-         *    one device work on other devices owned by the user).
-         * 
-         * Using your own server to store and verify developer payloads across app
-         * installations is recommended.
-         */
-        return true;
-    }
-
-    // We're being destroyed. It's important to dispose of the helper here!
     @Override
     public void onDestroy() {
         super.onDestroy();
 
-        // very important:
-        Log.d(TAG, "Destroying helper.");
+        initialized = false;
+
+        // We're being destroyed. It's important to dispose of the helper here!
+        jsLog("Destroying helper.");
         if (mHelper != null) {
             mHelper.dispose();
             mHelper = null;

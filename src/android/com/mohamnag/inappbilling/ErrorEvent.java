@@ -26,7 +26,7 @@ public class ErrorEvent {
         ret.append(msgKey, msg);
         
         if(result != null) {
-            ret.append(nativeEventKey, result.toJSON());
+            ret.append(nativeEventKey, result.toJson());
         }
         
         return ret;
