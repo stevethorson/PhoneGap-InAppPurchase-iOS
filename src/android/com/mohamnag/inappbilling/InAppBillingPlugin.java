@@ -5,7 +5,7 @@
  * @modifications Brian Thurlow 10/16/13
  *
  */
-package com.smartmobilesoftware.inappbilling;
+package com.mohamnag.inappbilling;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,20 +17,54 @@ import java.util.ArrayList;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 
-import com.smartmobilesoftware.util.Purchase;
-import com.smartmobilesoftware.util.IabHelper;
-import com.smartmobilesoftware.util.IabResult;
-import com.smartmobilesoftware.util.Inventory;
-import com.smartmobilesoftware.util.SkuDetails;
+import com.mohamnag.util.Purchase;
+import com.mohamnag.iab.IabHelper;
+import com.mohamnag.iab.IabResult;
+import com.mohamnag.util.Inventory;
+import com.mohamnag.util.SkuDetails;
 
 import android.content.Intent;
 import android.util.Log;
 
 public class InAppBillingPlugin extends CordovaPlugin {
+    //TODO: transfer all the logs back to JS for a better visibility. ~> window.inappbilling.log()
 
+    /*
+    SIDE NOTE: plugins can initialize automatically using "initialize" method. they can even request on load
+    init. may be considered too!
+
+    http://docs.phonegap.com/en/3.4.0/guide_platforms_android_plugin.md.html#Android%20Plugins
+     */
+
+
+    /*
+    Error codes.
+    keep synchronized between: InAppPurchase.m, InAppBillingPlugin.java, android_iab.js and ios_iab.js
+
+    Be carefull assiging new codes, these are meant to express the REASON of the error, not WHAT failed!
+     */
+    private static final int ERROR_CODES_BASE           = 4983497;
+
+
+    private static final int ERR_SETUP                  = ERROR_CODES_BASE + 1;
+    private static final int ERR_LOAD                   = ERROR_CODES_BASE + 2;
+    private static final int ERR_PURCHASE               = ERROR_CODES_BASE + 3;
+    private static final int ERR_LOAD_RECEIPTS          = ERROR_CODES_BASE + 4;
+    private static final int ERR_CLIENT_INVALID         = ERROR_CODES_BASE + 5;
+    private static final int ERR_PAYMENT_CANCELLED      = ERROR_CODES_BASE + 6;
+    private static final int ERR_PAYMENT_INVALID        = ERROR_CODES_BASE + 7;
+    private static final int ERR_PAYMENT_NOT_ALLOWED    = ERROR_CODES_BASE + 8;
+    private static final int ERR_UNKNOWN                = ERROR_CODES_BASE + 10;
+    
+    // used here:
+    private static final int ERR_LOAD_INVENTORY         = ERROR_CODES_BASE + 11;
+    private static final int ERR_HELPER_DISPOSED        = ERROR_CODES_BASE + 12;
+    
+    //TODO: set this from JS, according to what is defined in options
     private final Boolean ENABLE_DEBUG_LOGGING = true;
     private final String TAG = "CORDOVA_BILLING";
 
+    //TODO: move it to config file: https://github.com/poiuytrez/AndroidInAppBilling/pull/52/files
     /* base64EncodedPublicKey should be YOUR APPLICATION'S PUBLIC KEY
      * (that you got from the Google Play developer console). This is not your
      * developer public key, it's the *app-specific* public key.
@@ -53,7 +87,15 @@ public class InAppBillingPlugin extends CordovaPlugin {
     // A quite up to date inventory of available items and purchase items
     Inventory myInventory;
 
+    //TODO: a global callbakcContext is wrong and may interfere in concurrent calls, remove this and pass it to each function!
     CallbackContext callbackContext;
+
+    //TODO: replace all the Log.d() calls with this 
+    private void jsLog(String msg) {
+        //TODO: msg is prone to js injection! current workaround: turn off logs in production
+        String js = String.format("window.inappbilling.log('%s');", "[android] " + msg);
+        webView.sendJavascript(js);
+    }
 
     @Override
     /**
@@ -78,32 +120,38 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     }
                 }
                 // Initialize
-                init(sku);
-            } else if ("getPurchases".equals(action)) {
+                init(sku, callbackContext);
+            } 
+            else if ("getPurchases".equals(action)) {
                 // Get the list of purchases
                 JSONArray jsonSkuList = new JSONArray();
                 jsonSkuList = getPurchases();
                 // Call the javascript back
                 callbackContext.success(jsonSkuList);
-            } else if ("buy".equals(action)) {
+            } 
+            else if ("buy".equals(action)) {
 				// Buy an item
                 // Get Product Id 
                 final String sku = data.getString(0);
                 buy(sku);
-            } else if ("subscribe".equals(action)) {
+            } 
+            else if ("subscribe".equals(action)) {
 				// Subscribe to an item
                 // Get Product Id 
                 final String sku = data.getString(0);
                 subscribe(sku);
-            } else if ("consumePurchase".equals(action)) {
+            } 
+            else if ("consumePurchase".equals(action)) {
                 consumePurchase(data);
-            } else if ("getAvailableProducts".equals(action)) {
+            } 
+            else if ("getAvailableProducts".equals(action)) {
                 // Get the list of purchases
                 JSONArray jsonSkuList = new JSONArray();
                 jsonSkuList = getAvailableProducts();
                 // Call the javascript back
                 callbackContext.success(jsonSkuList);
-            } else if ("getProductDetails".equals(action)) {
+            } 
+            else if ("getProductDetails".equals(action)) {
                 JSONArray jsonSkuList = new JSONArray(data.getString(0));
                 final List<String> sku = new ArrayList<String>();
                 int len = jsonSkuList.length();
@@ -113,10 +161,12 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     Log.d(TAG, "Product SKU Added: " + jsonSkuList.get(i).toString());
                 }
                 getProductDetails(sku);
-            } else {
+            } 
+            else {
                 // No handler for the action
                 isValidAction = false;
             }
+            
         } catch (IllegalStateException e) {
             callbackContext.error(e.getMessage());
         } catch (JSONException e) {
@@ -127,9 +177,16 @@ public class InAppBillingPlugin extends CordovaPlugin {
         return isValidAction;
     }
 
-    // Initialize the plugin
-    private void init(final List<String> skus) {
-        Log.d(TAG, "init start");
+    /**
+     * Initializes the plugin, will also optionally loads products if 
+     * some product IDs are provided.
+     * 
+     * @param skus
+     * @param callbackContext
+     */
+    private void init(final List<String> skus, final CallbackContext callbackContext) {
+        jsLog("Initialization started.");
+
         // Some sanity checks to see if the developer (that's you!) really followed the
         // instructions to run this plugin
         if (base64EncodedPublicKey.contains("CONSTRUCT_YOUR")) {
@@ -137,7 +194,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
         }
 
         // Create the helper, passing it our context and the public key to verify signatures with
-        Log.d(TAG, "Creating IAB helper.");
+        jsLog("Creating IAB helper.");
         mHelper = new IabHelper(cordova.getActivity().getApplicationContext(), base64EncodedPublicKey);
 
         // enable debug logging (for a production application, you should set this to false).
@@ -145,37 +202,75 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
         // Start setup. This is asynchronous and the specified listener
         // will be called once setup completes.
-        Log.d(TAG, "Starting setup.");
+        jsLog("Starting IAB setup.");
 
         mHelper.startSetup(new IabHelper.OnIabSetupFinishedListener() {
+            @Override
             public void onIabSetupFinished(IabResult result) {
-                Log.d(TAG, "Setup finished.");
+                jsLog("Setup finished.");
 
                 if (!result.isSuccess()) {
                     // Oh no, there was a problem.
-                    callbackContext.error("Problem setting up in-app billing: " + result);
+                    callbackContext.error(ErrorEvent.buildJson(
+                            ERR_SETUP, 
+                            "IAB setup was not successful", 
+                            result
+                    ));
                     return;
                 }
 
+                //TODO: strongly believe that this here is not needed, shall be removed and instead the destroy function should set a flag which cancels ALL functions and sets plugin into not inited status
                 // Have we been disposed of in the meantime? If so, quit.
                 if (mHelper == null) {
-                    callbackContext.error("The billing helper has been disposed");
+                    callbackContext.error(ErrorEvent.buildJson(
+                            ERR_HELPER_DISPOSED, 
+                            "The billing helper has been disposed.", 
+                            result
+                    ));
                 }
 
                 // Hooray, IAB is fully set up. Now, let's get an inventory of stuff we own.
+
+                //TODO: the code bellow here actually belongs to a function where the inventory is updated!
+
+                // we create the inventory listener here and dont use a global one, why? 
+                // because we have a callback to get hold of it!
+                IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
+                    @Override
+                    public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
+                        jsLog("Inventory listener called.");
+
+                        if (result.isFailure()) {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_LOAD_INVENTORY, 
+                                    "Failed to query inventory.", 
+                                    result
+                            ));
+                        }
+                        else {
+                            //I'm not really feeling good about just copying inventory OVER old data!
+                            myInventory = inventory;
+
+                            jsLog("Query inventory was successful.");
+                            callbackContext.success();
+                        }
+                    }
+                };
+
                 if (skus.size() <= 0) {
-                    Log.d(TAG, "Setup successful. Querying inventory.");
-                    mHelper.queryInventoryAsync(mGotInventoryListener);
-                } else {
-                    Log.d(TAG, "Setup successful. Querying inventory w/ SKUs.");
-                    mHelper.queryInventoryAsync(true, skus, mGotInventoryListener);
+                    jsLog("Setup successful. Querying inventory.");
+                    mHelper.queryInventoryAsync(invListener);
+                } 
+                else {
+                    jsLog("Setup successful. Querying inventory with specific product IDs.");
+                    mHelper.queryInventoryAsync(true, skus, invListener);
                 }
             }
         });
-    }
+}
 
     // Buy an item
-    private void buy(final String sku) {
+private void buy(final String sku) {
         /* TODO: for security, generate your payload here for verification. See the comments on 
          *        verifyDeveloperPayload() for more info. Since this is a sample, we just use 
          *        an empty string, but on a production app you should generate this. */
@@ -189,8 +284,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
         this.cordova.setActivityResultCallback(this);
 
         mHelper.launchPurchaseFlow(cordova.getActivity(), sku, RC_REQUEST,
-                mPurchaseFinishedListener, payload);
-
+            mPurchaseFinishedListener, payload);
     }
 
     // Buy an item
@@ -224,14 +318,13 @@ public class InAppBillingPlugin extends CordovaPlugin {
         }
         List<Purchase> purchaseList = myInventory.getAllPurchases();
 
-        // Convert the java list to json
+        // Convert the java list to buildJson
         JSONArray jsonPurchaseList = new JSONArray();
         for (Purchase p : purchaseList) {
             jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
         }
 
         return jsonPurchaseList;
-
     }
 
     // Get the list of available products
@@ -243,7 +336,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
         }
         List<SkuDetails> skuList = myInventory.getAllProducts();
 
-        // Convert the java list to json
+        // Convert the java list to buildJson
         JSONArray jsonSkuList = new JSONArray();
         try {
             for (SkuDetails sku : skuList) {
@@ -312,7 +405,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
             List<SkuDetails> skuList = inventory.getAllProducts();
 
-            // Convert the java list to json
+            // Convert the java list to buildJson
             JSONArray jsonSkuList = new JSONArray();
             try {
                 for (SkuDetails sku : skuList) {
@@ -409,15 +502,15 @@ public class InAppBillingPlugin extends CordovaPlugin {
         Log.d(TAG, "onActivityResult(" + requestCode + "," + resultCode + "," + data);
 
         // Pass on the activity result to the helper for handling
-        if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
+            if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
             // not handled, so handle it ourselves (here's where you'd
             // perform any handling of activity results not related to in-app
             // billing...
-            super.onActivityResult(requestCode, resultCode, data);
-        } else {
-            Log.d(TAG, "onActivityResult handled by IABUtil.");
+                super.onActivityResult(requestCode, resultCode, data);
+            } else {
+                Log.d(TAG, "onActivityResult handled by IABUtil.");
+            }
         }
-    }
 
     /**
      * Verifies the developer payload of a purchase.

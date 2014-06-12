@@ -1,6 +1,6 @@
 
 
-package com.smartmobilesoftware.util;
+package com.mohamnag.util;
 
 /**
  * Exception thrown when encountering an invalid Base64 input character.

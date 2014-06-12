@@ -1,5 +1,5 @@
 
-package com.smartmobilesoftware.util;
+package com.mohamnag.util;
 
 import org.json.JSONException;
 import org.json.JSONObject;

@@ -1,6 +1,6 @@
 
 
-package com.smartmobilesoftware.util;
+package com.mohamnag.util;
 
 
 /**
