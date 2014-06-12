@@ -104,7 +104,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     @Override
     /**
-     * Called by each javascript plugin function
+     * Called from JavaScript and dispatches the requests further to proper 
+     * functions.
      */
     public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
         this.callbackContext = callbackContext;
@@ -134,7 +135,12 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 // Buy an item
                 case "buy": {
                     if (isReady(callbackContext)) {
-                        buy(data.getString(0), data.getString(1), callbackContext);
+                        String payload = "";
+                        if(data.length() > 1) {
+                            payload = data.getString(1);
+                        }
+                        
+                        buy(data.getString(0), payload, callbackContext);
                     }
                     break;
                 }
