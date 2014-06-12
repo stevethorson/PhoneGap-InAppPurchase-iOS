@@ -24,7 +24,10 @@ public class ErrorEvent {
         JSONObject ret = new JSONObject();
         ret.append(errorCodeKey, errorCode);
         ret.append(msgKey, msg);
-        ret.append(nativeEventKey, result.toJSON());
+        
+        if(result != null) {
+            ret.append(nativeEventKey, result.toJSON());
+        }
         
         return ret;
     }
