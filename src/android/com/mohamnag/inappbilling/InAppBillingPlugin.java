@@ -60,7 +60,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
     private static final int ERR_INVENTORY_NOT_LOADED = ERROR_CODES_BASE + 14;
     private static final int ERR_PURCHASE_FAILED = ERROR_CODES_BASE + 15;
     private static final int ERR_JSON_CONVERSION_FAILED = ERROR_CODES_BASE + 16;
-    private static final int ERR_INVALID_PURCHASE_PAYLOAD = ERROR_CODES_BASE + 16;
+    private static final int ERR_INVALID_PURCHASE_PAYLOAD = ERROR_CODES_BASE + 17;
+    private static final int ERR_SUBSCRIPTION_NOT_SUPPORTED = ERROR_CODES_BASE + 18;
 
     private boolean initialized = false;
 
@@ -83,8 +84,10 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     private final String base64EncodedPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAogC9VXkak0pUlNZLpT90jKyejwrsd6ASjL1wuIJgpk3TyoOEYR3aUdthTfVEnqsEdOWNb/uc0CsFfsnGIchiQmiL3oSM7WFpC4/zWVYl8M+oe3BWczEMKSC7XR/XXjsnK7dMWvPFkProF9+4yDCHy+zpPT0HKP0UZOp0GTNGjgKP2SIye0Whx985vo6edsrKeNe7aZZS63N8X6bRIMAHKgyO4vowZJn+QYGzHh9ZSknExfJFqBKhMr5ytI2shhzFMx0tQPd76SKjIRZ8e6iQAyJkMjLnCBbhfB4FoguSXijB4PCZxTJ0fmO6OGIhWf3hz/wLRapGlRXtEuV2HVTH5QIDAQAB";
 
-    // (arbitrary) request code for the purchase flow
-    static final int RC_REQUEST = 10001;
+    /**
+     * request code for the purchase flow
+     */
+    static int RC_REQUEST_BASE = 10000;
 
     // The helper object
     IabHelper mHelper;
@@ -104,7 +107,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     @Override
     /**
-     * Called from JavaScript and dispatches the requests further to proper 
+     * Called from JavaScript and dispatches the requests further to proper
      * functions.
      */
     public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
@@ -136,19 +139,24 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 case "buy": {
                     if (isReady(callbackContext)) {
                         String payload = "";
-                        if(data.length() > 1) {
+                        if (data.length() > 1) {
                             payload = data.getString(1);
                         }
-                        
+
                         buy(data.getString(0), payload, callbackContext);
                     }
                     break;
                 }
+                // Subscribe to an item
                 case "subscribe": {
-                    // Subscribe to an item
-                    // Get Product Id
-                    final String sku = data.getString(0);
-                    subscribe(sku);
+                    if (isReady(callbackContext)) {
+                        String payload = "";
+                        if (data.length() > 1) {
+                            payload = data.getString(1);
+                        }
+
+                        subscribe(data.getString(0), payload, callbackContext);
+                    }
                     break;
                 }
                 case "consumePurchase":
@@ -300,7 +308,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     private void buy(final String productId, final String payload, final CallbackContext callbackContext) {
         this.cordova.setActivityResultCallback(this);
-
+        
         // we create one listener for each purchase request, this guarnatiees 
         // the concistency of data when multiple requests is launched in parallel
         IabHelper.OnIabPurchaseFinishedListener prchListener = new IabHelper.OnIabPurchaseFinishedListener() {
@@ -347,32 +355,81 @@ public class InAppBillingPlugin extends CordovaPlugin {
         mHelper.launchPurchaseFlow(
                 cordova.getActivity(),
                 productId,
-                RC_REQUEST,
+                RC_REQUEST_BASE++,
                 prchListener,
                 payload
         );
     }
 
-    // Buy an item
-    private void subscribe(final String sku) {
-        if (mHelper == null) {
-            callbackContext.error("Billing plugin was not initialized");
-            return;
-        }
+    /**
+     * Subscribe to an already loaded item.
+     * 
+     * @param productId
+     * @param payload
+     * @param callbackContext 
+     */
+    private void subscribe(final String productId, final String payload, final CallbackContext callbackContext) {
         if (!mHelper.subscriptionsSupported()) {
-            callbackContext.error("Subscriptions not supported on your device yet. Sorry!");
-            return;
+            callbackContext.error(ErrorEvent.buildJson(
+                    ERR_SUBSCRIPTION_NOT_SUPPORTED,
+                    "Subscriptions not supported on device.",
+                    null
+            ));
         }
+        else {
+            this.cordova.setActivityResultCallback(this);
+            jsLog("Launching purchase flow for subscription.");
 
-        /* TODO: for security, generate your payload here for verification. See the comments on 
-         *        verifyDeveloperPayload() for more info. Since this is a sample, we just use 
-         *        an empty string, but on a production app you should generate this. */
-        final String payload = "";
+            IabHelper.OnIabPurchaseFinishedListener subsListener = new IabHelper.OnIabPurchaseFinishedListener() {
+                @Override
+                public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
+                    jsLog("Subscription finished: " + result + ", purchase: " + purchase);
+                    
+                    if (isReady(callbackContext)) {
+                        if (result.isFailure()) {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_PURCHASE_FAILED,
+                                    "Subscription failed",
+                                    result
+                            ));
+                        }
+                        else if (!payload.equals(purchase.getDeveloperPayload())) {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_INVALID_PURCHASE_PAYLOAD,
+                                    "Developer payload verification failed.",
+                                    result
+                            ));
+                        }
+                        else {
+                            jsLog("Subscription successful.");
 
-        this.cordova.setActivityResultCallback(this);
-        Log.d(TAG, "Launching purchase flow for subscription.");
+                            // add the purchase to the inventory
+                            myInventory.addPurchase(purchase);
 
-        mHelper.launchPurchaseFlow(cordova.getActivity(), sku, IabHelper.ITEM_TYPE_SUBS, RC_REQUEST, mPurchaseFinishedListener, payload);
+                            try {
+                                callbackContext.success(new JSONObject(purchase.getOriginalJson()));
+                            }
+                            catch (JSONException e) {
+                                callbackContext.error(ErrorEvent.buildJson(
+                                        ERR_JSON_CONVERSION_FAILED,
+                                        "Could not create JSON object from purchase object",
+                                        result
+                                ));
+                            }
+                        }
+                    }
+                }
+            };
+
+            mHelper.launchPurchaseFlow(
+                    cordova.getActivity(),
+                    productId,
+                    IabHelper.ITEM_TYPE_SUBS,
+                    RC_REQUEST_BASE++,
+                    subsListener,
+                    payload
+            );
+        }
     }
 
     /**
