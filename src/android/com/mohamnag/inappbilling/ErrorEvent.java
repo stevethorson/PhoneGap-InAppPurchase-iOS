@@ -1,7 +1,7 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * In App Billing Plugin
+ * 
+ * Details and more information under: https://github.com/mohamnag/InAppBilling/wiki
  */
 
 package com.mohamnag.inappbilling;
@@ -16,8 +16,8 @@ import org.json.JSONObject;
  * @author mohamang
  */
 public class ErrorEvent {
-    private static final String errorCodeKey = "errorCode";
     private static final String msgKey = "msg";
+    private static final String errorCodeKey = "errorCode";
     private static final String nativeEventKey = "nativeEvent";
     
     public static JSONObject buildJson(int errorCode, String msg, IabResult result) {

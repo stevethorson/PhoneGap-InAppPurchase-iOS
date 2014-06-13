@@ -1,9 +1,7 @@
 /**
  * In App Billing Plugin
- *
- * @author Guillaume Charhon - Smart Mobile Software
- * @modifications Brian Thurlow 10/16/13
- *
+ * 
+ * Details and more information under: https://github.com/mohamnag/InAppBilling/wiki
  */
 package com.mohamnag.inappbilling;
 
@@ -27,17 +25,17 @@ import android.content.Intent;
 
 public class InAppBillingPlugin extends CordovaPlugin {
 
-    /*
-     SIDE NOTE: plugins can initialize automatically using "initialize" method. 
-     they can even request on startup init. may be considered too!
-
-     http://docs.phonegap.com/en/3.4.0/guide_platforms_android_plugin.md.html#Android%20Plugins
-     */
-    /*
-     Error codes.
-     keep synchronized between: InAppPurchase.m, InAppBillingPlugin.java, android_iab.js and ios_iab.js
-
-     Be carefull assiging new codes, these are meant to express the REASON of the error, not WHAT failed!
+    /**
+     * Error codes.
+     * 
+     * keep synchronized between: 
+     *  * InAppPurchase.m
+     *  * InAppBillingPlugin.java 
+     *  * android_iab.js 
+     *  * ios_iab.js
+     * 
+     * Be carefull assiging new codes, these are meant to express the REASON of 
+     * the error as exact as possible!
      */
     private static final int ERROR_CODES_BASE = 4983497;
 
@@ -223,6 +221,13 @@ public class InAppBillingPlugin extends CordovaPlugin {
         return sku;
     }
 
+    /*
+     SIDE NOTE: plugins can initialize automatically using "initialize" method. 
+     they can even request on startup init. may be considered too!
+
+     http://docs.phonegap.com/en/3.4.0/guide_platforms_android_plugin.md.html#Android%20Plugins
+     */
+    
     /**
      * Initializes the plug-in, will also optionally load products if some
      * product IDs are provided.
