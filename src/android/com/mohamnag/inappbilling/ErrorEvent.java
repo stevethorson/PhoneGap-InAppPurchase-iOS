@@ -7,6 +7,7 @@
 package com.mohamnag.inappbilling;
 
 import com.mohamnag.inappbilling.helper.IabResult;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -20,13 +21,13 @@ public class ErrorEvent {
     private static final String errorCodeKey = "errorCode";
     private static final String nativeEventKey = "nativeEvent";
     
-    public static JSONObject buildJson(int errorCode, String msg, IabResult result) {
+    public static JSONObject buildJson(int errorCode, String msg, IabResult result) throws JSONException {
         JSONObject ret = new JSONObject();
-        ret.append(errorCodeKey, errorCode);
-        ret.append(msgKey, msg);
+        ret.put(errorCodeKey, errorCode);
+        ret.put(msgKey, msg);
         
         if(result != null) {
-            ret.append(nativeEventKey, result.toJson());
+            ret.put(nativeEventKey, result.toJson());
         }
         
         return ret;

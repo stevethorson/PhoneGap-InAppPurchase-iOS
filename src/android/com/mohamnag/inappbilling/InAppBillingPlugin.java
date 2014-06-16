@@ -1,7 +1,8 @@
 /**
  * In App Billing Plugin
- * 
- * Details and more information under: https://github.com/mohamnag/InAppBilling/wiki
+ *
+ * Details and more information under:
+ * https://github.com/mohamnag/InAppBilling/wiki
  */
 package com.mohamnag.inappbilling;
 
@@ -27,14 +28,11 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
     /**
      * Error codes.
-     * 
-     * keep synchronized between: 
-     *  * InAppPurchase.m
-     *  * InAppBillingPlugin.java 
-     *  * android_iab.js 
-     *  * ios_iab.js
-     * 
-     * Be carefull assiging new codes, these are meant to express the REASON of 
+     *
+     * keep synchronized between: * InAppPurchase.m * InAppBillingPlugin.java *
+     * android_iab.js * ios_iab.js
+     *
+     * Be carefull assiging new codes, these are meant to express the REASON of
      * the error as exact as possible!
      */
     private static final int ERROR_CODES_BASE = 4983497;
@@ -98,8 +96,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
     /**
      * This is a bridge to the log function in JavaScript world. We pass the
      * logs there for an easier debug for end developers.
-     * 
-     * This is prone to XSS attacks! current workaround: turn off logs in production
+     *
+     * This is prone to XSS attacks! current workaround: turn off logs in
+     * production
      *
      * @param msg
      */
@@ -116,80 +115,76 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
         jsLog("execute called for action: " + action + " data: " + data);
-        
+
         // Check if the action has a handler
         Boolean isValidAction = true;
 
         // Action selector
         try {
-            switch (action) {
-                // Initialize
-                case "init": {
-                    List<String> productIds = null;
-                    if (data.length() > 0) {
-                        productIds = jsonStringToList(data.getString(0));
+            // Initialize
+            if ("init".equals(action)) {
+                List<String> productIds = null;
+                if (data.length() > 0) {
+                    productIds = jsonStringToList(data.getString(0));
+                }
+
+                init(productIds, callbackContext);
+            } // Get the list of purchases
+            else if ("getPurchases".equals(action)) {
+                if (isReady(callbackContext)) {
+                    getPurchases(callbackContext);
+                }
+            } // Buy an item
+            else if ("buy".equals(action)) {
+                if (isReady(callbackContext)) {
+                    String payload = "";
+                    if (data.length() > 1) {
+                        payload = data.getString(1);
                     }
 
-                    init(productIds, callbackContext);
-                    break;
+                    buy(data.getString(0), payload, callbackContext);
                 }
-                // Get the list of purchases
-                case "getPurchases": {
-                    if (isReady(callbackContext)) {
-                        getPurchases(callbackContext);
-                    }
-                    break;
-                }
-                // Buy an item
-                case "buy": {
-                    if (isReady(callbackContext)) {
-                        String payload = "";
-                        if (data.length() > 1) {
-                            payload = data.getString(1);
-                        }
 
-                        buy(data.getString(0), payload, callbackContext);
+            } // Subscribe to an item
+            else if ("subscribe".equals(action)) {
+                if (isReady(callbackContext)) {
+                    String payload = "";
+                    if (data.length() > 1) {
+                        payload = data.getString(1);
                     }
-                    break;
-                }
-                // Subscribe to an item
-                case "subscribe": {
-                    if (isReady(callbackContext)) {
-                        String payload = "";
-                        if (data.length() > 1) {
-                            payload = data.getString(1);
-                        }
 
-                        subscribe(data.getString(0), payload, callbackContext);
-                    }
-                    break;
+                    subscribe(data.getString(0), payload, callbackContext);
                 }
-                // consume an owned item
-                case "consumePurchase":
-                    if (isReady(callbackContext)) {
-                        consumePurchase(data.getString(0), callbackContext);
-                    }
-                    break;
-                // Get the list of loaded products
-                case "getAvailableProducts": {
-                    if (isReady(callbackContext)) {
-                        getAvailableProducts(callbackContext);
-                    }
-                    break;
+            } // consume an owned item
+            else if ("consumePurchase".equals(action)) {
+                if (isReady(callbackContext)) {
+                    consumePurchase(data.getString(0), callbackContext);
                 }
-                // Get details of a loaded product
-                case "getProductDetails": {
-                    if (isReady(callbackContext)) {
-                        getProductDetails(jsonStringToList(data.getString(0)), callbackContext);
-                    }
-                    break;
+
+            } // Get the list of loaded products
+            else if ("getAvailableProducts".equals(action)) {
+                if (isReady(callbackContext)) {
+                    getAvailableProducts(callbackContext);
                 }
-                default:
-                    // No handler for the action
-                    isValidAction = false;
-                    break;
+            } // Get details of a loaded product
+            else if ("getProductDetails".equals(action)) {
+                if (isReady(callbackContext)) {
+                    getProductDetails(jsonStringToList(data.getString(0)), callbackContext);
+                }
+            } // No handler for the action
+            else {
+
+                isValidAction = false;
             }
 
+        }
+        catch (JSONException e) {
+            callbackContext.error(e.getMessage());
+//            callbackContext.error(ErrorEvent.buildJson(
+//                    ERR_JSON_CONVERSION_FAILED,
+//                    "Could not create JSON object from purchase list",
+//                    null
+//            ));
         }
         catch (IllegalStateException e) {
             callbackContext.error(e.getMessage());
@@ -205,10 +200,10 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param data
      * @return
      */
-    private List<String> jsonStringToList(String data) {
+    private List<String> jsonStringToList(String data) throws JSONException {
         JSONArray jsonSkuList = new JSONArray(data);
 
-        List<String> sku = new ArrayList<>();
+        List<String> sku = new ArrayList<String>();
         int len = jsonSkuList.length();
 
         jsLog("Num SKUs Found: " + len);
@@ -227,7 +222,6 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
      http://docs.phonegap.com/en/3.4.0/guide_platforms_android_plugin.md.html#Android%20Plugins
      */
-    
     /**
      * Initializes the plug-in, will also optionally load products if some
      * product IDs are provided.
@@ -262,11 +256,16 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     // Oh no, there was a problem.
                     jsLog("Setup finished unsuccessfully.");
 
-                    callbackContext.error(ErrorEvent.buildJson(
-                            ERR_SETUP,
-                            "IAB setup was not successful",
-                            result
-                    ));
+                    try {
+                        callbackContext.error(ErrorEvent.buildJson(
+                                ERR_SETUP,
+                                "IAB setup was not successful",
+                                result
+                        ));
+                    }
+                    catch (JSONException e) {
+                        jsLog(e.getMessage());
+                    }
 
                 }
                 else {
@@ -275,7 +274,12 @@ public class InAppBillingPlugin extends CordovaPlugin {
                     initialized = true;
 
                     // Now, let's get an inventory of stuff we own.
-                    getProductDetails(productIds, callbackContext);
+                    try {
+                        getProductDetails(productIds, callbackContext);
+                    }
+                    catch (JSONException e) {
+                        jsLog(e.getMessage());
+                    }
                 }
             }
         });
@@ -287,7 +291,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      *
      * @param result
      */
-    private boolean isReady(CallbackContext callbackContext) {
+    private boolean isReady(CallbackContext callbackContext) throws JSONException {
         if (!initialized) {
             callbackContext.error(ErrorEvent.buildJson(
                     ERR_NOT_INITIALIZED,
@@ -296,8 +300,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
             ));
 
             return false;
-        }
-        // Have we been disposed of in the meantime? If so, quit. (probably 
+        } // Have we been disposed of in the meantime? If so, quit. (probably 
         // useless but lets keep it for now!) 
         else if (mHelper == null) {
             callbackContext.error(ErrorEvent.buildJson(
@@ -322,7 +325,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      */
     private void buy(final String productId, final String payload, final CallbackContext callbackContext) {
         jsLog("buy called for productId: " + productId + " payload: " + payload);
-        
+
         this.cordova.setActivityResultCallback(this);
 
         // we create one listener for each purchase request, this guarnatiees 
@@ -331,39 +334,44 @@ public class InAppBillingPlugin extends CordovaPlugin {
             @Override
             public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
                 jsLog("Purchase finished: " + result + ", purchase: " + purchase);
+                try {
 
-                if (isReady(callbackContext)) {
-                    if (result.isFailure()) {
-                        callbackContext.error(ErrorEvent.buildJson(
-                                ERR_PURCHASE_FAILED,
-                                "Purchase failed",
-                                result
-                        ));
-                    }
-                    else if (!payload.equals(purchase.getDeveloperPayload())) {
-                        callbackContext.error(ErrorEvent.buildJson(
-                                ERR_INVALID_PURCHASE_PAYLOAD,
-                                "Developer payload verification failed.",
-                                result
-                        ));
-                    }
-                    else {
-                        jsLog("Purchase successful.");
-
-                        // add the purchase to the inventory
-                        myInventory.addPurchase(purchase);
-
-                        try {
-                            callbackContext.success(new JSONObject(purchase.getOriginalJson()));
-                        }
-                        catch (JSONException e) {
+                    if (isReady(callbackContext)) {
+                        if (result.isFailure()) {
                             callbackContext.error(ErrorEvent.buildJson(
-                                    ERR_JSON_CONVERSION_FAILED,
-                                    "Could not create JSON object from purchase object",
+                                    ERR_PURCHASE_FAILED,
+                                    "Purchase failed",
                                     result
                             ));
                         }
+                        else if (!payload.equals(purchase.getDeveloperPayload())) {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_INVALID_PURCHASE_PAYLOAD,
+                                    "Developer payload verification failed.",
+                                    result
+                            ));
+                        }
+                        else {
+                            jsLog("Purchase successful.");
+
+                            // add the purchase to the inventory
+                            myInventory.addPurchase(purchase);
+
+                            try {
+                                callbackContext.success(new JSONObject(purchase.getOriginalJson()));
+                            }
+                            catch (JSONException e) {
+                                callbackContext.error(ErrorEvent.buildJson(
+                                        ERR_JSON_CONVERSION_FAILED,
+                                        "Could not create JSON object from purchase object",
+                                        result
+                                ));
+                            }
+                        }
                     }
+                }
+                catch (JSONException e) {
+                    jsLog(e.getMessage());
                 }
             }
         };
@@ -384,9 +392,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param payload
      * @param callbackContext
      */
-    private void subscribe(final String productId, final String payload, final CallbackContext callbackContext) {
+    private void subscribe(final String productId, final String payload, final CallbackContext callbackContext) throws JSONException {
         jsLog("subscribe called for productId: " + productId + " payload: " + payload);
-        
+
         if (!mHelper.subscriptionsSupported()) {
             callbackContext.error(ErrorEvent.buildJson(
                     ERR_SUBSCRIPTION_NOT_SUPPORTED,
@@ -403,38 +411,43 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
                     jsLog("Subscription finished: " + result + ", purchase: " + purchase);
 
-                    if (isReady(callbackContext)) {
-                        if (result.isFailure()) {
-                            callbackContext.error(ErrorEvent.buildJson(
-                                    ERR_PURCHASE_FAILED,
-                                    "Subscription failed",
-                                    result
-                            ));
-                        }
-                        else if (!payload.equals(purchase.getDeveloperPayload())) {
-                            callbackContext.error(ErrorEvent.buildJson(
-                                    ERR_INVALID_PURCHASE_PAYLOAD,
-                                    "Developer payload verification failed.",
-                                    result
-                            ));
-                        }
-                        else {
-                            jsLog("Subscription successful.");
-
-                            // add the purchase to the inventory
-                            myInventory.addPurchase(purchase);
-
-                            try {
-                                callbackContext.success(new JSONObject(purchase.getOriginalJson()));
-                            }
-                            catch (JSONException e) {
+                    try {
+                        if (isReady(callbackContext)) {
+                            if (result.isFailure()) {
                                 callbackContext.error(ErrorEvent.buildJson(
-                                        ERR_JSON_CONVERSION_FAILED,
-                                        "Could not create JSON object from purchase object",
+                                        ERR_PURCHASE_FAILED,
+                                        "Subscription failed",
                                         result
                                 ));
                             }
+                            else if (!payload.equals(purchase.getDeveloperPayload())) {
+                                callbackContext.error(ErrorEvent.buildJson(
+                                        ERR_INVALID_PURCHASE_PAYLOAD,
+                                        "Developer payload verification failed.",
+                                        result
+                                ));
+                            }
+                            else {
+                                jsLog("Subscription successful.");
+
+                                // add the purchase to the inventory
+                                myInventory.addPurchase(purchase);
+
+                                try {
+                                    callbackContext.success(new JSONObject(purchase.getOriginalJson()));
+                                }
+                                catch (JSONException e) {
+                                    callbackContext.error(ErrorEvent.buildJson(
+                                            ERR_JSON_CONVERSION_FAILED,
+                                            "Could not create JSON object from purchase object",
+                                            result
+                                    ));
+                                }
+                            }
                         }
+                    }
+                    catch (JSONException e) {
+                        jsLog(e.getMessage());
                     }
                 }
             };
@@ -456,29 +469,19 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      * @throws JSONException
      */
-    private void getPurchases(CallbackContext callbackContext) {
+    private void getPurchases(CallbackContext callbackContext) throws JSONException {
         jsLog("getPurchases called.");
 
         if (isInventoryLoaded(callbackContext)) {
             List<Purchase> purchaseList = myInventory.getAllPurchases();
 
-            // becareful here not to call both success and error!
-            try {
-                // Convert the java list to JSON
-                JSONArray jsonPurchaseList = new JSONArray();
-                for (Purchase p : purchaseList) {
-                    jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
-                }
+            // Convert the java list to JSON
+            JSONArray jsonPurchaseList = new JSONArray();
+            for (Purchase p : purchaseList) {
+                jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
+            }
 
-                callbackContext.success(jsonPurchaseList);
-            }
-            catch (JSONException e) {
-                callbackContext.error(ErrorEvent.buildJson(
-                        ERR_JSON_CONVERSION_FAILED,
-                        "Could not create JSON object from purchase list",
-                        null
-                ));
-            }
+            callbackContext.success(jsonPurchaseList);
         }
     }
 
@@ -488,7 +491,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param callbackContext
      * @return
      */
-    private boolean isInventoryLoaded(CallbackContext callbackContext) {
+    private boolean isInventoryLoaded(CallbackContext callbackContext) throws JSONException {
         if (myInventory == null) {
             callbackContext.error(ErrorEvent.buildJson(
                     ERR_INVENTORY_NOT_LOADED,
@@ -508,30 +511,20 @@ public class InAppBillingPlugin extends CordovaPlugin {
      *
      * @param callbackContext
      */
-    private void getAvailableProducts(CallbackContext callbackContext) {
+    private void getAvailableProducts(CallbackContext callbackContext) throws JSONException {
         jsLog("getAvailableProducts called.");
-        
+
         if (isInventoryLoaded(callbackContext)) {
             List<SkuDetails> skuList = myInventory.getAllProducts();
 
-            // becareful here not to call both success and error!
-            try {
-                // Convert the java list to JSON
-                JSONArray jsonSkuList = new JSONArray();
-                for (SkuDetails sku : skuList) {
-                    jsLog("SKUDetails: Title: " + sku.getTitle());
-                    jsonSkuList.put(sku.toJson());
-                }
+            // Convert the java list to JSON
+            JSONArray jsonSkuList = new JSONArray();
+            for (SkuDetails sku : skuList) {
+                jsLog("SKUDetails: Title: " + sku.getTitle());
+                jsonSkuList.put(sku.toJson());
+            }
 
-                callbackContext.success(jsonSkuList);
-            }
-            catch (JSONException e) {
-                callbackContext.error(ErrorEvent.buildJson(
-                        ERR_JSON_CONVERSION_FAILED,
-                        "Could not create JSON object from products list",
-                        null
-                ));
-            }
+            callbackContext.success(jsonSkuList);
         }
     }
 
@@ -542,20 +535,25 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param productIds
      * @param callbackContext
      */
-    private void getProductDetails(final List<String> productIds, final CallbackContext callbackContext) {
+    private void getProductDetails(final List<String> productIds, final CallbackContext callbackContext) throws JSONException {
         jsLog("getProductDetails called.");
-        
+
         IabHelper.QueryInventoryFinishedListener invListener = new IabHelper.QueryInventoryFinishedListener() {
             @Override
             public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
                 jsLog("Inventory listener called.");
 
                 if (result.isFailure()) {
-                    callbackContext.error(ErrorEvent.buildJson(
-                            ERR_LOAD_INVENTORY,
-                            "Failed to query inventory.",
-                            result
-                    ));
+                    try {
+                        callbackContext.error(ErrorEvent.buildJson(
+                                ERR_LOAD_INVENTORY,
+                                "Failed to query inventory.",
+                                result
+                        ));
+                    }
+                    catch (JSONException e) {
+                        jsLog(e.getMessage());
+                    }
                 }
                 else {
                     //I'm not really feeling good about just copying inventory OVER old data!
@@ -583,11 +581,11 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param productId
      * @param callbackContext
      */
-    private void consumePurchase(final String productId, final CallbackContext callbackContext) {
+    private void consumePurchase(final String productId, final CallbackContext callbackContext) throws JSONException {
         jsLog("consumePurchase called.");
-        
+
         if (isInventoryLoaded(callbackContext)) {
-            
+
             // Get the purchase from the inventory
             Purchase purchase = myInventory.getPurchase(productId);
 
@@ -606,11 +604,16 @@ public class InAppBillingPlugin extends CordovaPlugin {
                             callbackContext.success(purchase.getOriginalJson());
                         }
                         else {
-                            callbackContext.error(ErrorEvent.buildJson(
-                                    ERR_CONSUMPTION_FAILED,
-                                    "Error while consuming: " + productId,
-                                    result
-                            ));
+                            try {
+                                callbackContext.error(ErrorEvent.buildJson(
+                                        ERR_CONSUMPTION_FAILED,
+                                        "Error while consuming: " + productId,
+                                        result
+                                ));
+                            }
+                            catch (JSONException e) {
+                                jsLog(e.getMessage());
+                            }
                         }
 
                     }
@@ -647,7 +650,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
     @Override
     public void onDestroy() {
         jsLog("onDestroy called.");
-        
+
         super.onDestroy();
 
         initialized = false;

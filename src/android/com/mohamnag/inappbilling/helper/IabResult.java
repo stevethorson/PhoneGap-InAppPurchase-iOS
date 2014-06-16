@@ -1,5 +1,6 @@
 package com.mohamnag.inappbilling.helper;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -44,10 +45,10 @@ public class IabResult {
         return "IabResult: " + getMessage();
     }
 
-    public JSONObject toJson() {
+    public JSONObject toJson() throws JSONException {
         JSONObject res = new JSONObject();
-        res.append("IabResponse", mResponse);
-        res.append("IabMessage", this.getMessage());
+        res.put("IabResponse", mResponse);
+        res.put("IabMessage", this.getMessage());
 
         return res;
     }
