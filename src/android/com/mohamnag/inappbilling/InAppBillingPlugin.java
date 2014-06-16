@@ -113,7 +113,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * Called from JavaScript and dispatches the requests further to proper
      * functions.
      */
-    public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) {
+    public boolean execute(String action, JSONArray data, final CallbackContext callbackContext) throws JSONException {
         jsLog("execute called for action: " + action + " data: " + data);
 
         // Check if the action has a handler
@@ -179,15 +179,11 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
         }
         catch (JSONException e) {
-            callbackContext.error(e.getMessage());
-//            callbackContext.error(ErrorEvent.buildJson(
-//                    ERR_JSON_CONVERSION_FAILED,
-//                    "Could not create JSON object from purchase list",
-//                    null
-//            ));
-        }
-        catch (IllegalStateException e) {
-            callbackContext.error(e.getMessage());
+            callbackContext.error(ErrorEvent.buildJson(
+                    ERR_JSON_CONVERSION_FAILED,
+                    "Could not create JSON object",
+                    null
+            ));
         }
 
         // Method not found
@@ -370,6 +366,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
                         }
                     }
                 }
+                // TODO: all of these caught exceptions shall be somehow sent back to callbackContext.error too!
                 catch (JSONException e) {
                     jsLog(e.getMessage());
                 }
