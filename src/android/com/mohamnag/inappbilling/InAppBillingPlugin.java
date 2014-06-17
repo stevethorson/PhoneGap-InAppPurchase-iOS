@@ -354,6 +354,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
                             myInventory.addPurchase(purchase);
 
                             try {
+                                //TODO: the data returned to success callback should be unified with iOS, maybe create a function in purchase class
                                 callbackContext.success(new JSONObject(purchase.getOriginalJson()));
                             }
                             catch (JSONException e) {
@@ -475,6 +476,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
             // Convert the java list to JSON
             JSONArray jsonPurchaseList = new JSONArray();
             for (Purchase p : purchaseList) {
+                //TODO: this object which we return should have a unified structure like in iOS
                 jsonPurchaseList.put(new JSONObject(p.getOriginalJson()));
             }
 
@@ -512,16 +514,17 @@ public class InAppBillingPlugin extends CordovaPlugin {
         jsLog("getAvailableProducts called.");
 
         if (isInventoryLoaded(callbackContext)) {
-            List<SkuDetails> skuList = myInventory.getAllProducts();
+            List<SkuDetails> productsList = myInventory.getAllProducts();
 
             // Convert the java list to JSON
-            JSONArray jsonSkuList = new JSONArray();
-            for (SkuDetails sku : skuList) {
-                jsLog("SKUDetails: Title: " + sku.getTitle());
-                jsonSkuList.put(sku.toJson());
+            JSONArray jsonProductDetailsList = new JSONArray();
+            for (SkuDetails product : productsList) {
+                jsLog("SKUDetails: Title: " + product.getTitle());
+                //TODO: sync this structure with iOS
+                jsonProductDetailsList.put(product.toJson());
             }
 
-            callbackContext.success(jsonSkuList);
+            callbackContext.success(jsonProductDetailsList);
         }
     }
 
@@ -597,7 +600,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
                             // remove the item from the inventory
                             myInventory.erasePurchase(purchase.getSku());
 
-                            //TODO: convert to JSONObject?!
+                            //TODO: convert to JSONObject?! and sync with iOS
                             callbackContext.success(purchase.getOriginalJson());
                         }
                         else {
