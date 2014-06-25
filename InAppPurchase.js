@@ -50,7 +50,7 @@ InAppPurchase.prototype.init = function (options) {
         purchaseEnqueued: options.purchaseEnqueued || noop,
         finish:   options.finish   || noop,
         restore:  options.restore  || noop,
-        refreshReceipts: options.refreshReceipts || noop,
+        receiptsRefreshed: options.receiptsRefreshed || noop,
         restoreFailed:     options.restoreFailed    || noop,
         restoreCompleted:  options.restoreCompleted || noop
     };
@@ -260,7 +260,7 @@ InAppPurchase.prototype.refreshReceipts = function() {
 
     var loaded = function (base64) {
         that.appStoreReceipt = base64;
-        protectCall(that.options.refreshReceipts, 'options.refreshReceipts', base64);
+        protectCall(that.options.receiptsRefreshed, 'options.receiptsRefreshed', base64);
     };
 
     var error = function(errMessage) {
@@ -270,6 +270,7 @@ InAppPurchase.prototype.refreshReceipts = function() {
 
     exec('appStoreRefreshReceipt', [], loaded, error);
 };
+
 InAppPurchase.prototype.loadReceipts = function (callback) {
 
     var that = this;

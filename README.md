@@ -88,7 +88,7 @@ The plugin adds the `window.storekit` object, with the following methods:
         error:    function (errorCode, errorText) {},
         purchase: function (transactionId, productId) {},
         restore:  function (originalTransactionId, productId) {}
-        refreshReceipts: function(appReceipt) {}
+        receiptsRefreshed: function(appReceipt) {}
         restoreCompleted: function () {},
         restoreFailed:    function (errorCode) {}
     })
@@ -112,9 +112,6 @@ In your `deviceready` listener, call:
         purchase: function (transactionId, productId) {
             console.log('purchased: ' + productId);
         },
-        refreshReceipts: function(appReceiptBase64) {
-            console.log('new app receipt: ' + appReceiptBase64);
-        },
         restore: function (transactionId, productId) {
             console.log('restored: ' + productId);
         },
@@ -123,6 +120,9 @@ In your `deviceready` listener, call:
         },
         restoreFailed: function (errCode) {
             console.log('restore failed: ' + errCode);
+        },
+        receiptsRefreshed: function(appReceiptBase64) {
+            console.log('new app receipt: ' + appReceiptBase64);
         },
         error: function (errno, errtext) {
             console.log('Failed: ' + errtext);
@@ -150,10 +150,6 @@ To restore previous purchases:
 To make a purchase:
 
     window.storekit.purchase("com.example.app.inappid1", 1);
-
-To refresh the application receipt (IOS 7)
-
-    window.storekit.refreshReceipts();
 
 Error codes:
 
@@ -187,6 +183,11 @@ Error codes:
         receipts.forTransaction(transactionId); // null or base64 encoded receipt (iOS < 7)
         receipts.forProduct(productId); // null or base64 encoded receipt (iOS < 7)
     });
+
+To refresh the application receipt (IOS 7)
+
+    window.storekit.refreshReceipts();
+
 
 ### Manually Finish Transactions
 By default, the plugin auto-finish all completed transactions. In some cases, for example when content needs to be delivered by a server, you should finish the transaction only when the content has been delivered. (Thus preventing the user from paying for something he didn't get).
