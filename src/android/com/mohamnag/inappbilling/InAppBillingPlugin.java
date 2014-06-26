@@ -42,6 +42,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
     private static final int ERR_PURCHASE = ERROR_CODES_BASE + 3;
     private static final int ERR_LOAD_RECEIPTS = ERROR_CODES_BASE + 4;
     private static final int ERR_CLIENT_INVALID = ERROR_CODES_BASE + 5;
+    // payment process was cancelled by user
     private static final int ERR_PAYMENT_CANCELLED = ERROR_CODES_BASE + 6;
     private static final int ERR_PAYMENT_INVALID = ERROR_CODES_BASE + 7;
     private static final int ERR_PAYMENT_NOT_ALLOWED = ERROR_CODES_BASE + 8;
@@ -350,7 +351,14 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 try {
 
                     if (isReady(callbackContext)) {
-                        if (result.isFailure()) {
+                        if (result.getResponse() == IabHelper.IABHELPER_USER_CANCELLED) {
+                            callbackContext.error(ErrorEvent.buildJson(
+                                    ERR_PAYMENT_CANCELLED,
+                                    "Purchase cancelled by user.",
+                                    result
+                            ));                            
+                        }
+                        else if (result.isFailure()) {
                             callbackContext.error(ErrorEvent.buildJson(
                                     ERR_PURCHASE_FAILED,
                                     "Purchase failed",
