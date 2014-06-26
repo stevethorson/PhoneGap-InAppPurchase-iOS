@@ -325,9 +325,19 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param payload
      * @param callbackContext
      */
-    private void buy(final String productId, final String payload, final CallbackContext callbackContext) {
+    private void buy(final String productId, final String payload, final CallbackContext callbackContext) throws JSONException {
         jsLog("buy called for productId: " + productId + " payload: " + payload);
 
+        if (!myInventory.hasDetails(productId)) {
+            callbackContext.error(ErrorEvent.buildJson(
+                    ERR_PRODUCT_NOT_LOADED,
+                    "Product intended to be bought has not been loaded.",
+                    null
+            ));
+
+            return;
+        }
+        
         // TODO: we have to check if to-be-purchased product is already loaded or not.
         this.cordova.setActivityResultCallback(this);
 
