@@ -23,7 +23,6 @@ import com.mohamnag.inappbilling.helper.Inventory;
 import com.mohamnag.inappbilling.helper.SkuDetails;
 
 import android.content.Intent;
-import static com.mohamnag.inappbilling.helper.IabHelper.IABHELPER_SUBSCRIPTIONS_NOT_AVAILABLE;
 
 public class InAppBillingPlugin extends CordovaPlugin {
 
@@ -152,9 +151,9 @@ public class InAppBillingPlugin extends CordovaPlugin {
                 }
 
             } // consume an owned item
-            else if ("consumePurchase".equals(action)) {
+            else if ("consumeProduct".equals(action)) {
                 if (isReady(callbackContext)) {
-                    consumePurchase(data.getString(0), callbackContext);
+                    consumeProduct(data.getString(0), callbackContext);
                 }
 
             } // Get the list of loaded products
@@ -533,8 +532,8 @@ public class InAppBillingPlugin extends CordovaPlugin {
      * @param productId
      * @param callbackContext
      */
-    private void consumePurchase(final String productId, final CallbackContext callbackContext) throws JSONException {
-        jsLog("consumePurchase called.");
+    private void consumeProduct(final String productId, final CallbackContext callbackContext) throws JSONException {
+        jsLog("consumeProduct called.");
 
         if (isInventoryLoaded(callbackContext)) {
 
