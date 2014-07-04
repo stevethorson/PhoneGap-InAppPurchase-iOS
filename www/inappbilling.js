@@ -46,6 +46,7 @@ var InAppBilling = function() {
  * @private
  */
 ERROR_CODES_BASE = 4983497;
+InAppBilling.prototype.ERR_NO_ERROR = ERROR_CODES_BASE;
 InAppBilling.prototype.ERR_SETUP = ERROR_CODES_BASE + 1;
 InAppBilling.prototype.ERR_LOAD = ERROR_CODES_BASE + 2;
 InAppBilling.prototype.ERR_PURCHASE = ERROR_CODES_BASE + 3;
@@ -83,6 +84,13 @@ InAppBilling.prototype.ERR_INVALID_PRODUCT_ID = ERROR_CODES_BASE + 22;
  * @type @exp;ERROR_CODES_BASE|Number
  */
 InAppBilling.prototype.ERR_INVALID_PURCHASE_ID = ERROR_CODES_BASE + 23;
+
+/**
+ * Item requested to be bought is already owned
+ * 
+ * @type @exp;ERROR_CODES_BASE|Number
+ */
+InAppBilling.prototype.ERR_PURCHASE_OWNED_ITEM = ERROR_CODES_BASE + 24;
 
 /***
  * This function accepts and outputs all the logs, both from native and from JS
