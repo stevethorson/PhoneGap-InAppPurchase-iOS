@@ -308,29 +308,6 @@ InAppBilling.prototype.consumeProduct = function(success, fail, productId) {
  */
 
 /**
- * The success callback for [getLoadedProducts]{@link module:InAppBilling#getLoadedProducts}.
- * 
- * @callback getLoadedProductsSuccessCallback
- * @param {Array.<ProductDetails>} products
- */
-
-/**
- * Get all the loaded products. Products should be loaded before this call. 
- * You can either load items at [init]{@link module:InAppBilling#init} or by 
- * calling [loadProductDetails]{@link module:InAppBilling#loadProductDetails}.
- * 
- * @param {getLoadedProductsSuccessCallback} success callback for successful query
- * @param {errorCallback} fail  callback for failed query
- */
-InAppBilling.prototype.getLoadedProducts = function(success, fail) {
-    // TODO: remove this and use simply the loadProductDetails
-    this.log('getLoadedProducts called!');
-
-    //TODO: implement this for iOS!
-    return cordova.exec(success, fail, "InAppBillingPlugin", "getLoadedProducts", ["null"]);
-};
-
-/**
  * This is the success callback for [loadProductDetails]{@link module:InAppBilling#loadProductDetails}.
  * This will be called when process is successfully finished and will receive a list of valid and 
  * loaded products.

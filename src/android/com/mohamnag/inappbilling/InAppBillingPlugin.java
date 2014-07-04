@@ -164,12 +164,6 @@ public class InAppBillingPlugin extends CordovaPlugin {
             if (isReady(callbackContext)) {
                 consumeProduct(data.getString(0), callbackContext);
             }
-
-        } // Get the list of loaded products
-        else if ("getLoadedProducts".equals(action)) {
-            if (isReady(callbackContext)) {
-                getLoadedProducts(callbackContext);
-            }
         } // Get details of a loaded product
         else if ("loadProductDetails".equals(action)) {
             if (isReady(callbackContext)) {
@@ -484,26 +478,7 @@ public class InAppBillingPlugin extends CordovaPlugin {
 
         return ret;
     }
-
-    /**
-     * Returns the list of all loaded products.
-     *
-     * @param callbackContext
-     */
-    private void getLoadedProducts(CallbackContext callbackContext) throws JSONException {
-        jsLog("getLoadedProducts called.");
-
-        if (initialized) {
-            callbackContext.success(myInventory.getAllProductsJSON());
-        }
-        else {
-            callbackContext.error(new Error(
-                    ERR_INVENTORY_NOT_LOADED,
-                    "Inventory is not loaded."
-            ).toJavaScriptJSON());
-        }
-    }
-
+    
     /**
      * Loads products with specific IDs and gets their details.
      *
